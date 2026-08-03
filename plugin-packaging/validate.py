@@ -19,6 +19,19 @@ LOCK_PATH = ROOT / "UPSTREAM.lock.json"
 BUILD_INFO_PATH = PLUGIN_ROOT / "BUILD-INFO.json"
 EXPECTED_SKILL_COUNT = 21
 UPSTREAM_URL = "https://github.com/xbtlin/ai-berkshire"
+ALLOWED_TOP_LEVEL = {
+    ".agents",
+    ".editorconfig",
+    ".github",
+    ".gitignore",
+    "AGENTS.md",
+    "LICENSE",
+    "PLUGIN.md",
+    "README.md",
+    "UPSTREAM.lock.json",
+    "plugin-packaging",
+    "plugins",
+}
 SEMVER = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
@@ -52,6 +65,29 @@ class Validator:
         return payload
 
 
+def validate_distribution_layout(validator: Validator) -> None:
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        validator.errors.append("cannot inspect tracked files for distribution layout")
+        return
+
+    tracked_roots = {
+        Path(relative).parts[0]
+        for relative in result.stdout.split("\0")
+        if relative and (ROOT / relative).exists()
+    }
+    unexpected = sorted(tracked_roots - ALLOWED_TOP_LEVEL)
+    validator.require(
+        not unexpected,
+        "unexpected tracked top-level paths in codex-plugin: "
+        + ", ".join(unexpected),
+    )
 
 
 def frontmatter(text: str, path: Path, validator: Validator) -> dict[str, str]:
@@ -295,6 +331,7 @@ def smoke_help(validator: Validator) -> None:
 
 def main() -> int:
     validator = Validator()
+    validate_distribution_layout(validator)
     manifest, _, lock = validate_manifest(validator)
     validate_skills(validator)
     compile_python(validator)
