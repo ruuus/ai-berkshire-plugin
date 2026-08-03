@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the distributable Codex plugin from the current upstream tree."""
+"""Generate the distributable Codex plugin from an independent upstream tree."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ import stat
 import subprocess
 import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_ROOT = ROOT / "plugins" / "ai-berkshire"
 OVERLAY_ROOT = ROOT / "plugin-packaging" / "overlay"
-CODEX_SKILLS = ROOT / "codex-skills"
-SOURCE_TOOLS = ROOT / "tools"
 UPSTREAM_URL = "https://github.com/xbtlin/ai-berkshire"
 EXPECTED_SKILL_COUNT = 21
 GENERATED_PATHS = (
@@ -31,6 +31,7 @@ GENERATED_PATHS = (
     "BUILD-INFO.json",
 )
 CANONICAL_PATHS = (
+    "LICENSE",
     "skills",
     "codex-skills",
     "tools",
@@ -72,10 +73,10 @@ class SyncError(RuntimeError):
     """Raised when upstream changed in a way that needs manual review."""
 
 
-def command_output(args: list[str]) -> str:
+def command_output(args: list[str], cwd: Path = ROOT) -> str:
     result = subprocess.run(
         args,
-        cwd=ROOT,
+        cwd=cwd,
         text=True,
         capture_output=True,
         check=False,
@@ -105,22 +106,39 @@ def resolve_ref(requested: str) -> str:
     )
 
 
-def ensure_canonical_tree(ref: str) -> None:
+def ensure_canonical_tree(source_root: Path) -> dict[str, str]:
+    missing = [path for path in CANONICAL_PATHS if not (source_root / path).exists()]
+    if missing:
+        raise SyncError(
+            f"upstream source {source_root} is missing required paths:\n"
+            + "\n".join(f"  {path}" for path in missing)
+        )
+
+    top_level = Path(
+        command_output(["git", "rev-parse", "--show-toplevel"], cwd=source_root)
+    ).resolve()
+    if top_level != source_root.resolve():
+        raise SyncError(
+            f"--source-dir must be a Git checkout root: {source_root} "
+            f"(repository root is {top_level})"
+        )
+
     diff = subprocess.run(
-        ["git", "diff", "--quiet", ref, "--", *CANONICAL_PATHS],
-        cwd=ROOT,
+        ["git", "diff", "--quiet", "HEAD", "--", *CANONICAL_PATHS],
+        cwd=source_root,
         check=False,
     )
     if diff.returncode == 1:
         raise SyncError(
-            f"canonical upstream files differ from {ref}; update that ref and "
-            "merge it into codex-plugin before regenerating"
+            f"canonical upstream files in {source_root} have tracked changes; "
+            "commit or discard them before regenerating"
         )
     if diff.returncode:
-        raise SyncError(f"git diff against {ref} failed")
+        raise SyncError(f"git diff failed in upstream source {source_root}")
 
     untracked = command_output(
-        ["git", "ls-files", "--others", "--exclude-standard", "--", *CANONICAL_PATHS]
+        ["git", "ls-files", "--others", "--exclude-standard", "--", *CANONICAL_PATHS],
+        cwd=source_root,
     )
     if untracked:
         raise SyncError(
@@ -130,13 +148,64 @@ def ensure_canonical_tree(ref: str) -> None:
 
     result = subprocess.run(
         [sys.executable, "scripts/sync-codex-skills.py", "--check"],
-        cwd=ROOT,
+        cwd=source_root,
         check=False,
     )
     if result.returncode:
         raise SyncError(
             "codex-skills are stale; regenerate them in the upstream tree first"
         )
+
+    commit = command_output(["git", "rev-parse", "HEAD^{commit}"], cwd=source_root)
+    commit_date = command_output(
+        ["git", "show", "-s", "--format=%cI", "HEAD"],
+        cwd=source_root,
+    )
+    if not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise SyncError(f"upstream checkout returned an invalid commit: {commit!r}")
+    return {"commit": commit, "commitDate": commit_date}
+
+
+@contextmanager
+def upstream_source(source_dir: Path | None, upstream_ref: str) -> Iterator[Path]:
+    """Yield a clean upstream checkout without adding its files to this branch."""
+    if source_dir is not None:
+        resolved = source_dir.expanduser().resolve()
+        if not resolved.is_dir():
+            raise SyncError(f"upstream source directory does not exist: {resolved}")
+        yield resolved
+        return
+
+    ref = resolve_ref(upstream_ref)
+    with tempfile.TemporaryDirectory(prefix="ai-berkshire-upstream-") as temp:
+        checkout = Path(temp) / "source"
+        result = subprocess.run(
+            ["git", "worktree", "add", "--detach", str(checkout), ref],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode:
+            detail = (result.stderr or result.stdout).strip()
+            raise SyncError(f"cannot create temporary checkout for {ref}: {detail}")
+        try:
+            yield checkout
+        finally:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(checkout)],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            subprocess.run(
+                ["git", "worktree", "prune"],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -384,18 +453,23 @@ def write_json(path: Path, payload: dict) -> None:
     )
 
 
-def provenance(ref: str) -> dict[str, str]:
-    return {
-        "commit": command_output(["git", "rev-parse", f"{ref}^{{commit}}"]),
-        "commitDate": command_output(["git", "show", "-s", "--format=%cI", ref]),
-    }
-
-
-def build_expected(destination: Path, ref: str) -> dict:
+def build_expected(
+    destination: Path,
+    source_root: Path,
+    source: dict[str, str],
+) -> dict:
     skills_out = destination / "skills"
     tools_out = destination / "tools"
-    shutil.copytree(CODEX_SKILLS, skills_out, copy_function=shutil.copy2)
-    shutil.copytree(SOURCE_TOOLS, tools_out, copy_function=shutil.copy2)
+    shutil.copytree(
+        source_root / "codex-skills",
+        skills_out,
+        copy_function=shutil.copy2,
+    )
+    shutil.copytree(
+        source_root / "tools",
+        tools_out,
+        copy_function=shutil.copy2,
+    )
 
     skill_dirs = sorted(
         path for path in skills_out.iterdir()
@@ -426,7 +500,7 @@ def build_expected(destination: Path, ref: str) -> dict:
         patch_xueqiu_tool(xueqiu_path.read_text(encoding="utf-8")),
     )
     shutil.copy2(OVERLAY_ROOT / "tools" / "plugin_doctor.py", tools_out)
-    shutil.copy2(ROOT / "LICENSE", destination / "LICENSE")
+    shutil.copy2(source_root / "LICENSE", destination / "LICENSE")
     shutil.copy2(OVERLAY_ROOT / "NOTICE", destination / "NOTICE")
     shutil.copy2(
         OVERLAY_ROOT / "requirements-optional.txt",
@@ -436,7 +510,6 @@ def build_expected(destination: Path, ref: str) -> dict:
     manifest = json.loads(
         (PLUGIN_ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
     )
-    source = provenance(ref)
     tool_count = sum(1 for path in tools_out.iterdir() if path.is_file())
     build_info = {
         "plugin": manifest["name"],
@@ -503,7 +576,7 @@ def compare_generated(expected_plugin: Path, expected_lock: Path) -> None:
         raise SyncError(
             "generated plugin files are stale:\n"
             + "\n".join(f"  {path}" for path in stale)
-            + "\nrun: python3 plugin-packaging/sync_from_upstream.py"
+            + "\nrun the sync command again with --upstream-ref or --source-dir"
         )
 
 
@@ -525,36 +598,54 @@ def install_generated(expected_plugin: Path, expected_lock: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate the AI Berkshire Codex plugin from the canonical tree."
+        description=(
+            "Generate the AI Berkshire Codex plugin from an independent "
+            "upstream checkout."
+        )
     )
     parser.add_argument(
         "--check",
         action="store_true",
         help="Verify committed generated files without changing them.",
     )
-    parser.add_argument(
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
+        "--source-dir",
+        type=Path,
+        help=(
+            "Path to a clean xbtlin/ai-berkshire Git checkout. "
+            "Its current HEAD is used as the source commit."
+        ),
+    )
+    source.add_argument(
         "--upstream-ref",
-        default="main",
-        help="Git ref that represents the mirrored upstream main branch.",
+        help=(
+            "Git ref in this repository to materialize as a temporary source "
+            "checkout (default: main)."
+        ),
     )
     args = parser.parse_args()
 
     try:
-        ref = resolve_ref(args.upstream_ref)
-        ensure_canonical_tree(ref)
-        with tempfile.TemporaryDirectory(prefix="ai-berkshire-plugin-") as temp:
-            temp_root = Path(temp)
-            expected_plugin = temp_root / "plugin"
-            expected_plugin.mkdir()
-            lock = build_expected(expected_plugin, ref)
-            expected_lock = temp_root / "UPSTREAM.lock.json"
-            write_json(expected_lock, lock)
-            if args.check:
-                compare_generated(expected_plugin, expected_lock)
-                action = "verified"
-            else:
-                install_generated(expected_plugin, expected_lock)
-                action = "generated"
+        with upstream_source(args.source_dir, args.upstream_ref or "main") as source_root:
+            source_info = ensure_canonical_tree(source_root)
+            with tempfile.TemporaryDirectory(prefix="ai-berkshire-plugin-") as temp:
+                temp_root = Path(temp)
+                expected_plugin = temp_root / "plugin"
+                expected_plugin.mkdir()
+                lock = build_expected(
+                    expected_plugin,
+                    source_root,
+                    source_info,
+                )
+                expected_lock = temp_root / "UPSTREAM.lock.json"
+                write_json(expected_lock, lock)
+                if args.check:
+                    compare_generated(expected_plugin, expected_lock)
+                    action = "verified"
+                else:
+                    install_generated(expected_plugin, expected_lock)
+                    action = "generated"
         print(
             f"{action} ai-berkshire {lock['pluginVersion']} from "
             f"{lock['sourceCommit']} ({lock['skillCount']} skills, "

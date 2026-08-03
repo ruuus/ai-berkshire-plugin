@@ -18,12 +18,7 @@ MARKETPLACE_PATH = ROOT / ".agents" / "plugins" / "marketplace.json"
 LOCK_PATH = ROOT / "UPSTREAM.lock.json"
 BUILD_INFO_PATH = PLUGIN_ROOT / "BUILD-INFO.json"
 EXPECTED_SKILL_COUNT = 21
-CANONICAL_PATHS = (
-    "skills",
-    "codex-skills",
-    "tools",
-    "scripts/sync-codex-skills.py",
-)
+UPSTREAM_URL = "https://github.com/xbtlin/ai-berkshire"
 SEMVER = re.compile(
     r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$"
@@ -55,6 +50,8 @@ class Validator:
             self.errors.append(f"{path.relative_to(ROOT)} must contain a JSON object")
             return {}
         return payload
+
+
 
 
 def frontmatter(text: str, path: Path, validator: Validator) -> dict[str, str]:
@@ -132,6 +129,25 @@ def validate_manifest(validator: Validator) -> tuple[dict, dict, dict]:
         validator.require(entry.get("category") == "Productivity", "marketplace category mismatch")
 
     validator.require(lock.get("pluginVersion") == version, "lock version differs from manifest")
+    validator.require(
+        lock.get("upstream") == UPSTREAM_URL,
+        "lock upstream repository mismatch",
+    )
+    validator.require(
+        lock.get("sourceBranch") == "main",
+        "lock source branch must be main",
+    )
+    source_commit = lock.get("sourceCommit")
+    validator.require(
+        isinstance(source_commit, str)
+        and re.fullmatch(r"[0-9a-f]{40}", source_commit) is not None,
+        "lock sourceCommit must be a full Git SHA",
+    )
+    validator.require(
+        isinstance(lock.get("sourceCommitDate"), str)
+        and bool(lock.get("sourceCommitDate")),
+        "lock sourceCommitDate is missing",
+    )
     validator.require(
         lock.get("skillCount") == EXPECTED_SKILL_COUNT,
         "lock skill count mismatch",
@@ -222,6 +238,9 @@ def validate_build_info(validator: Validator, manifest: dict, lock: dict) -> Non
     skill_count = len(skill_files())
     tool_count = len([path for path in (PLUGIN_ROOT / "tools").iterdir() if path.is_file()])
     validator.require(build.get("version") == manifest.get("version"), "build version mismatch")
+    validator.require(build.get("plugin") == manifest.get("name"), "build plugin name mismatch")
+    validator.require(build.get("upstream") == lock.get("upstream"), "build upstream mismatch")
+    validator.require(build.get("upstreamCommitDate") == lock.get("sourceCommitDate"), "build date mismatch")
     validator.require(build.get("upstreamCommit") == lock.get("sourceCommit"), "build commit mismatch")
     validator.require(build.get("skillCount") == skill_count, "build skill count mismatch")
     validator.require(build.get("toolFileCount") == tool_count, "build tool count mismatch")
@@ -231,27 +250,6 @@ def validate_build_info(validator: Validator, manifest: dict, lock: dict) -> Non
         "plugin LICENSE differs from upstream LICENSE",
     )
 
-    source_commit = lock.get("sourceCommit")
-    if not isinstance(source_commit, str) or not re.fullmatch(r"[0-9a-f]{40}", source_commit):
-        validator.errors.append("lock sourceCommit must be a full Git SHA")
-        return
-    exists = subprocess.run(
-        ["git", "cat-file", "-e", f"{source_commit}^{{commit}}"],
-        cwd=ROOT,
-        capture_output=True,
-        check=False,
-    )
-    validator.require(exists.returncode == 0, "lock source commit is unavailable in Git history")
-    if exists.returncode == 0:
-        diff = subprocess.run(
-            ["git", "diff", "--quiet", source_commit, "--", *CANONICAL_PATHS],
-            cwd=ROOT,
-            check=False,
-        )
-        validator.require(
-            diff.returncode == 0,
-            "canonical source tree differs from the commit recorded in UPSTREAM.lock.json",
-        )
 
 
 def smoke_help(validator: Validator) -> None:

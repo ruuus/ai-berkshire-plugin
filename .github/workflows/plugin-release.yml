@@ -14,14 +14,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Resolve locked upstream commit
+        id: upstream
+        shell: python
+        run: |
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          sha = json.loads(
+              Path("UPSTREAM.lock.json").read_text(encoding="utf-8")
+          )["sourceCommit"]
+          if re.fullmatch(r"[0-9a-f]{40}", sha) is None:
+              raise SystemExit("UPSTREAM.lock.json contains an invalid sourceCommit")
+          with Path(os.environ["GITHUB_OUTPUT"]).open(
+              "a", encoding="utf-8"
+          ) as output:
+              print(f"sha={sha}", file=output)
+      - name: Check out locked upstream source
+        uses: actions/checkout@v4
+        with:
+          repository: xbtlin/ai-berkshire
+          ref: ${{ steps.upstream.outputs.sha }}
+          path: .upstream/ai-berkshire
+          fetch-depth: 1
+          persist-credentials: false
       - name: Validate plugin
         run: |
-          python3 scripts/sync-codex-skills.py --check
-          python3 plugin-packaging/sync_from_upstream.py --check --upstream-ref origin/main
+          python3 plugin-packaging/sync_from_upstream.py --check --source-dir .upstream/ai-berkshire
           python3 plugin-packaging/validate.py
       - name: Build offline release assets
         run: |
