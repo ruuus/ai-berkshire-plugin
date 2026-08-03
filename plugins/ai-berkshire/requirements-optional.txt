@@ -1,0 +1,2 @@
+# Optional dependency used only by tools/xueqiu_scraper.py.
+playwright>=1.40,<2

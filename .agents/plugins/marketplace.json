@@ -1,0 +1,20 @@
+{
+  "name": "ai-berkshire-plugin",
+  "interface": {
+    "displayName": "AI Berkshire Plugin"
+  },
+  "plugins": [
+    {
+      "name": "ai-berkshire",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ai-berkshire"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

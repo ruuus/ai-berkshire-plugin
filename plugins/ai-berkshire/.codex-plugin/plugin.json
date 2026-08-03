@@ -1,0 +1,35 @@
+{
+  "name": "ai-berkshire",
+  "version": "0.2.0",
+  "description": "AI Berkshire investment research workflows for Codex, bundling 21 skills with shared financial validation and data tools.",
+  "author": {
+    "name": "xbtlin (upstream), ruuus (Codex plugin maintainer)",
+    "url": "https://github.com/ruuus/ai-berkshire-plugin"
+  },
+  "homepage": "https://github.com/ruuus/ai-berkshire-plugin/tree/codex-plugin",
+  "repository": "https://github.com/ruuus/ai-berkshire-plugin",
+  "license": "MIT",
+  "keywords": [
+    "investment-research",
+    "value-investing",
+    "financial-analysis",
+    "a-shares"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AI Berkshire",
+    "shortDescription": "21 个价值投资研究技能与共享金融工具",
+    "longDescription": "将公司研究、行业筛选、财报精读、管理层分析、组合管理、投资论文追踪和内容发布等 21 个 Codex 技能，与统一的财务验算、数据获取和报告审计工具打包安装。",
+    "developerName": "xbtlin · Codex packaging by ruuus",
+    "category": "Productivity",
+    "capabilities": [
+      "Research",
+      "Analysis"
+    ],
+    "defaultPrompt": [
+      "使用 investment-team 研究一家上市公司。",
+      "使用 earnings-review 精读最新财报。",
+      "使用 industry-funnel 筛选一个行业。"
+    ]
+  }
+}

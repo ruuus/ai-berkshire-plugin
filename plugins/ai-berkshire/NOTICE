@@ -1,0 +1,13 @@
+AI Berkshire Codex Plugin Distribution
+
+This Codex plugin is generated from the AI Berkshire project:
+https://github.com/xbtlin/ai-berkshire
+
+Original project copyright (c) 2026 xbtlin.
+Codex plugin packaging and portability adaptations are maintained at:
+https://github.com/ruuus/ai-berkshire-plugin
+
+The original project and this distribution are provided under the MIT License.
+See LICENSE for the full license text. This packaging does not imply endorsement
+by the upstream author. Preserve this NOTICE and LICENSE when redistributing the
+plugin.
