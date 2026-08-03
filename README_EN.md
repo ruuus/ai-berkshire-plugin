@@ -1,5 +1,12 @@
 English | [中文](README.md) | [日本語](README_JA.md)
 
+> [!IMPORTANT]
+> This repository is the Codex plugin distribution fork of
+> [xbtlin/ai-berkshire](https://github.com/xbtlin/ai-berkshire). The `main`
+> branch tracks upstream, while `codex-plugin` maintains the plugin manifest,
+> marketplace, portability adaptations, and generated bundle. See
+> [PLUGIN.md](PLUGIN.md) for installation, updates, and upstream-sync guidance.
+
 [![GitHub Trending](https://trendshift.io/api/badge/repositories/63696)](https://trendshift.io/repositories/63696)
 
 # AI Berkshire — Value Investing Research Framework for the AI Era

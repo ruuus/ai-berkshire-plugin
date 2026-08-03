@@ -1,5 +1,11 @@
 中文 | [English](README_EN.md) | [日本語](README_JA.md)
 
+> [!IMPORTANT]
+> 本仓库是 [xbtlin/ai-berkshire](https://github.com/xbtlin/ai-berkshire)
+> 的 Codex 插件维护与 marketplace 分发 fork。`main` 分支保持与上游同步；
+> `codex-plugin` 分支维护插件清单、marketplace、便携性适配和生成产物。
+> 安装、更新及上游同步方式请参阅 [PLUGIN.md](PLUGIN.md)。
+
 [![GitHub Trending](https://trendshift.io/api/badge/repositories/63696)](https://trendshift.io/repositories/63696)
 
 # AI Berkshire - AI 时代的价值投资研究框架

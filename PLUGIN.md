@@ -61,7 +61,14 @@ git push -u origin codex-plugin
 
 提交和推送是远端写操作；让 Codex 代办时应分别明确授权。
 
-## 从 GitHub 安装到 Codex/ChatGPT
+## 从 GitHub 安装到本地 Codex 环境
+
+> [!NOTE]
+> 下述 Git marketplace/CLI 流程只安装到本机 Codex 环境，不会把插件发布到
+> ChatGPT 网页版。网页版插件仅在 ChatGPT Work 的 **Plugins** 页面可用；若要在
+> 网页端分发本插件，需要通过个人/工作区共享或
+> [OpenAI 插件提交流程](https://developers.openai.com/plugins/deploy/submission)发布。
+> 参见 [ChatGPT 插件说明](https://learn.chatgpt.com/docs/plugins)。
 
 远端 `codex-plugin` 分支存在后，添加 Git marketplace：
 
@@ -79,7 +86,7 @@ codex plugin list --marketplace ai-berkshire-plugin --available --json
 codex plugin add ai-berkshire@ai-berkshire-plugin
 ```
 
-重启 ChatGPT/Codex 客户端并新建线程，测试：
+重启 Codex CLI 或 ChatGPT 桌面客户端中的 Codex 环境并新建线程，测试：
 
 ```text
 使用 ai-berkshire:investment-team 研究一家上市公司

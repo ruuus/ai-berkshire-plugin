@@ -1,5 +1,13 @@
 日本語 | [English](README_EN.md) | [中文](README.md)
 
+> [!IMPORTANT]
+> このリポジトリは
+> [xbtlin/ai-berkshire](https://github.com/xbtlin/ai-berkshire) の Codex
+> プラグイン配布用 fork です。`main` はアップストリームを追跡し、
+> `codex-plugin` はプラグインマニフェスト、marketplace、移植性対応、生成物を
+> 管理します。インストール、更新、アップストリーム同期については
+> [PLUGIN.md](PLUGIN.md) を参照してください。
+
 > 日本語版はコミュニティによりメンテナンスされています。内容が最新でない場合は、中文版・英語版を正としてください。
 
 [![GitHub Trending](https://trendshift.io/api/badge/repositories/63696)](https://trendshift.io/repositories/63696)
