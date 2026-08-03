@@ -6,6 +6,44 @@
 > `codex-plugin` 分支维护插件清单、marketplace、便携性适配和生成产物。
 > 安装、更新及上游同步方式请参阅 [PLUGIN.md](PLUGIN.md)。
 
+## Codex 插件快速安装
+
+已安装并登录最新版 Codex CLI 的用户，只需执行：
+
+```bash
+codex plugin marketplace add ruuus/ai-berkshire-plugin --ref codex-plugin --sparse .agents/plugins --sparse plugins/ai-berkshire
+codex plugin add ai-berkshire@ai-berkshire-plugin
+```
+
+这是推荐的 Git sparse 安装方式，只下载 marketplace 清单和插件目录，不会完整拉取
+仓库。安装后请重启 Codex 或新建线程，并在 `/plugins` 中确认 **AI Berkshire** 已启用。
+
+更新在线安装的插件：
+
+```bash
+codex plugin marketplace upgrade ai-berkshire-plugin
+codex plugin add ai-berkshire@ai-berkshire-plugin
+```
+
+卸载插件；第二条命令同时移除 marketplace 配置：
+
+```bash
+codex plugin remove ai-berkshire@ai-berkshire-plugin
+codex plugin marketplace remove ai-berkshire-plugin
+```
+
+无法联网访问 GitHub 仓库时，可下载
+[v0.2.0 Release 离线包](https://github.com/ruuus/ai-berkshire-plugin/releases/tag/v0.2.0)，
+校验 `SHA256SUMS` 后解压，再把解压目录作为本地 marketplace 安装：
+
+```bash
+codex plugin marketplace add /absolute/path/to/ai-berkshire-plugin-v0.2.0
+codex plugin add ai-berkshire@ai-berkshire-plugin
+```
+
+CLI 不能直接安装 ZIP，必须先解压。离线包升级、卸载以及可选依赖说明见
+[插件完整文档](PLUGIN.md#安装升级与卸载)。
+
 [![GitHub Trending](https://trendshift.io/api/badge/repositories/63696)](https://trendshift.io/repositories/63696)
 
 # AI Berkshire - AI 时代的价值投资研究框架

@@ -12,6 +12,7 @@ on:
       - "codex-skills/**"
       - "tools/**"
       - ".github/workflows/plugin-validate.yml"
+      - ".github/workflows/plugin-release.yml"
   pull_request:
     paths:
       - ".agents/plugins/**"
@@ -21,6 +22,7 @@ on:
       - "codex-skills/**"
       - "tools/**"
       - ".github/workflows/plugin-validate.yml"
+      - ".github/workflows/plugin-release.yml"
 
 permissions:
   contents: read
