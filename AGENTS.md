@@ -49,7 +49,7 @@ Before handing off plugin changes, run:
 ```bash
 python3 plugin-packaging/sync_from_upstream.py --check --upstream-ref main
 python3 plugin-packaging/validate.py
-python3 plugin-packaging/build_release.py --output-dir dist --expected-version 0.2.0
+python3 plugin-packaging/build_release.py --output-dir dist --expected-version 0.2.1
 ```
 
 Use `--source-dir` instead of `--upstream-ref` when validating against an independent checkout. Adjust the expected release version whenever the manifest version changes.

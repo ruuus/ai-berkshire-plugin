@@ -67,16 +67,18 @@ python3 plugin-packaging/sync_from_upstream.py \
 python3 plugin-packaging/validate.py
 ```
 
-`--source-dir` 必须指向干净 Git checkout 的根目录。同步器会先运行上游的 `scripts/sync-codex-skills.py --check`，并拒绝存在未提交 canonical 文件修改的源码树。
+`--source-dir` 必须指向干净 Git checkout 的根目录。同步器会拒绝存在未提交 canonical 文件修改的源码树，但不会要求其中已提交的 `codex-skills/` 已经与 `skills/` 同步。它会把 canonical skills、现有 Codex-only skill 和上游生成脚本复制到独立临时目录，清理旧派生 skill，再依次执行生成与 `--check`。整个过程不会写回该 checkout。
 
 ## 同步器执行内容
 
-1. 校验上游 `skills/` 与 `codex-skills/` 一致。
-2. 复制 21 个 Codex skills、共享 `tools/` 和上游 `LICENSE`。
-3. 把技能中的工具路径改为 `{AI_BERKSHIRE_ROOT}/tools/`。
-4. 应用 `ashare_data.py` 与 `xueqiu_scraper.py` 的跨平台适配。
-5. 加入 `plugin_doctor.py`、`NOTICE` 和可选依赖文件。
-6. 生成 `plugins/ai-berkshire/BUILD-INFO.json` 与根目录 `UPSTREAM.lock.json`。
+1. 校验上游 canonical 路径没有未提交修改，并记录当前完整 commit。
+2. 在隔离临时目录从 `skills/*.md` 重新生成派生 Codex skills，同时保留手写的 Codex-only skill。
+3. 对临时生成结果再次运行上游生成器的 `--check`。
+4. 复制 21 个 Codex skills、共享 `tools/` 和上游 `LICENSE`。
+5. 把技能中的工具路径改为 `{AI_BERKSHIRE_ROOT}/tools/`。
+6. 应用 `ashare_data.py` 与 `xueqiu_scraper.py` 的跨平台适配。
+7. 加入 `plugin_doctor.py`、`NOTICE` 和可选依赖文件。
+8. 生成 `plugins/ai-berkshire/BUILD-INFO.json` 与根目录 `UPSTREAM.lock.json`。
 
 如果上游修改了被适配代码的上下文，同步器会失败并要求人工复核，不会静默套用补丁。
 
@@ -140,7 +142,7 @@ codex plugin marketplace remove ai-berkshire-plugin
 从 [GitHub Releases](https://github.com/ruuus/ai-berkshire-plugin/releases) 下载同一版本的 ZIP 或 tar.gz 与 `SHA256SUMS`。校验后解压；Codex CLI 不能直接安装压缩包。
 
 ```bash
-codex plugin marketplace add /absolute/path/to/ai-berkshire-plugin-v0.2.0
+codex plugin marketplace add /absolute/path/to/ai-berkshire-plugin-vX.Y.Z
 codex plugin add ai-berkshire@ai-berkshire-plugin
 ```
 
@@ -162,14 +164,14 @@ codex plugin add ai-berkshire@ai-berkshire-plugin
 ```bash
 python3 plugin-packaging/build_release.py \
   --output-dir dist \
-  --expected-version 0.2.0
+  --expected-version 0.2.1
 ```
 
 输出：
 
 ```text
-dist/ai-berkshire-plugin-v0.2.0.zip
-dist/ai-berkshire-plugin-v0.2.0.tar.gz
+dist/ai-berkshire-plugin-v0.2.1.zip
+dist/ai-berkshire-plugin-v0.2.1.tar.gz
 dist/SHA256SUMS
 ```
 

@@ -1,9 +1,9 @@
 {
   "upstream": "https://github.com/xbtlin/ai-berkshire",
   "sourceBranch": "main",
-  "sourceCommit": "cd933eb2bb94f9f96f20b5b0a98790bab4f0a1a4",
-  "sourceCommitDate": "2026-08-03T00:50:12+08:00",
-  "pluginVersion": "0.2.0",
+  "sourceCommit": "6fa010f98efb586e643f42c1d2aacdcb1ef3d61f",
+  "sourceCommitDate": "2026-08-19T01:42:19+08:00",
+  "pluginVersion": "0.2.1",
   "skillCount": 21,
-  "toolFileCount": 14
+  "toolFileCount": 15
 }

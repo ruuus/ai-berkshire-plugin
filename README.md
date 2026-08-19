@@ -29,10 +29,10 @@ codex plugin marketplace remove ai-berkshire-plugin
 
 ## 离线安装
 
-无法访问 GitHub 仓库时，可下载 [v0.2.0 Release](https://github.com/ruuus/ai-berkshire-plugin/releases/tag/v0.2.0) 中的 ZIP 或 tar.gz 与 `SHA256SUMS`。校验后先解压，再把解压目录作为本地 marketplace：
+无法访问 GitHub 仓库时，可从 [GitHub Releases](https://github.com/ruuus/ai-berkshire-plugin/releases) 下载所需版本的 ZIP 或 tar.gz 与 `SHA256SUMS`。校验后先解压，再把解压目录作为本地 marketplace：
 
 ```bash
-codex plugin marketplace add /absolute/path/to/ai-berkshire-plugin-v0.2.0
+codex plugin marketplace add /absolute/path/to/ai-berkshire-plugin-vX.Y.Z
 codex plugin add ai-berkshire@ai-berkshire-plugin
 ```
 

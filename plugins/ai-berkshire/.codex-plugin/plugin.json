@@ -1,6 +1,6 @@
 {
   "name": "ai-berkshire",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AI Berkshire investment research workflows for Codex, bundling 21 skills with shared financial validation and data tools.",
   "author": {
     "name": "xbtlin (upstream), ruuus (Codex plugin maintainer)",

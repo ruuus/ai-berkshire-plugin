@@ -67,6 +67,7 @@ verify the target exists before invoking a tool. Never resolve tool paths
 against the current thread working directory.
 
 """
+GENERATED_SKILL_MARKER = "This skill is generated from `skills/"
 
 
 class SyncError(RuntimeError):
@@ -146,16 +147,6 @@ def ensure_canonical_tree(source_root: Path) -> dict[str, str]:
             + "\n".join(f"  {line}" for line in untracked.splitlines())
         )
 
-    result = subprocess.run(
-        [sys.executable, "scripts/sync-codex-skills.py", "--check"],
-        cwd=source_root,
-        check=False,
-    )
-    if result.returncode:
-        raise SyncError(
-            "codex-skills are stale; regenerate them in the upstream tree first"
-        )
-
     commit = command_output(["git", "rev-parse", "HEAD^{commit}"], cwd=source_root)
     commit_date = command_output(
         ["git", "show", "-s", "--format=%cI", "HEAD"],
@@ -164,6 +155,54 @@ def ensure_canonical_tree(source_root: Path) -> dict[str, str]:
     if not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise SyncError(f"upstream checkout returned an invalid commit: {commit!r}")
     return {"commit": commit, "commitDate": commit_date}
+
+
+def regenerate_codex_skills(source_root: Path, staging_root: Path) -> Path:
+    """Regenerate derived Codex skills without writing to the source checkout."""
+    skills_root = staging_root / "skills"
+    codex_skills_root = staging_root / "codex-skills"
+    generator = staging_root / "scripts" / "sync-codex-skills.py"
+
+    shutil.copytree(
+        source_root / "skills",
+        skills_root,
+        copy_function=shutil.copy2,
+    )
+    shutil.copytree(
+        source_root / "codex-skills",
+        codex_skills_root,
+        copy_function=shutil.copy2,
+    )
+    generator.parent.mkdir(parents=True)
+    shutil.copy2(source_root / "scripts" / "sync-codex-skills.py", generator)
+
+    # Retain hand-written Codex-only skills while removing every generated
+    # skill directory. This also prunes skills removed from canonical skills/.
+    skill_directories = sorted(
+        path for path in codex_skills_root.iterdir() if path.is_dir()
+    )
+    for skill_dir in skill_directories:
+        skill_file = skill_dir / "SKILL.md"
+        if (
+            skill_file.is_file()
+            and GENERATED_SKILL_MARKER in skill_file.read_text(encoding="utf-8")
+        ):
+            shutil.rmtree(skill_dir)
+
+    for arguments in ([], ["--check"]):
+        result = subprocess.run(
+            [sys.executable, str(generator), *arguments],
+            cwd=staging_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode:
+            detail = (result.stderr or result.stdout).strip()
+            action = "verify" if arguments else "regenerate"
+            raise SyncError(f"cannot {action} staged Codex skills: {detail}")
+
+    return codex_skills_root
 
 
 @contextmanager
@@ -456,12 +495,13 @@ def write_json(path: Path, payload: dict) -> None:
 def build_expected(
     destination: Path,
     source_root: Path,
+    codex_skills_root: Path,
     source: dict[str, str],
 ) -> dict:
     skills_out = destination / "skills"
     tools_out = destination / "tools"
     shutil.copytree(
-        source_root / "codex-skills",
+        codex_skills_root,
         skills_out,
         copy_function=shutil.copy2,
     )
@@ -631,11 +671,16 @@ def main() -> int:
             source_info = ensure_canonical_tree(source_root)
             with tempfile.TemporaryDirectory(prefix="ai-berkshire-plugin-") as temp:
                 temp_root = Path(temp)
+                codex_skills_root = regenerate_codex_skills(
+                    source_root,
+                    temp_root / "upstream-staging",
+                )
                 expected_plugin = temp_root / "plugin"
                 expected_plugin.mkdir()
                 lock = build_expected(
                     expected_plugin,
                     source_root,
+                    codex_skills_root,
                     source_info,
                 )
                 expected_lock = temp_root / "UPSTREAM.lock.json"
